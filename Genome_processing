@@ -1,0 +1,285 @@
+#!/usr/bin/env python
+
+
+from collections import Counter
+from collections import OrderedDict
+import csv
+from collections import defaultdict
+
+import os
+import operator
+import json
+import numpy as np
+import random
+
+
+"""
+GENOME PROCESSING
+"""
+
+SpeciesFileFolderName=input("What Should the species file folder name be?: ")
+UnmappalbesYesOrNo=input("Do you want to make unmappables (Y or N)?:")
+if UnmappalbesYesOrNo == "Y":
+      Q_Score_Cutoff=input("What is the desired QScore cutoff: ")
+      Kmer_Size=int(input("What Kmer size do you want to use?: "))
+ForwardGenomeRaw=input("What is the Genome file: ")
+basefilename=str(ForwardGenomeRaw)
+#print (type(basefilename))
+EditedForwardGenome="Simplified_"+ForwardGenomeRaw
+Reverse_EditedForwardGenome="Reverse_"+EditedForwardGenome
+
+
+
+
+os.system("seqtk seq -l0 " + ForwardGenomeRaw + " > " + EditedForwardGenome)
+
+os.system("seqtk seq -r " + EditedForwardGenome + " > " + Reverse_EditedForwardGenome)
+
+
+#Now all the genome is one line and reverse complemented
+#Next is to get the chromsome sizes using faidx
+
+
+os.system("faidx " + ForwardGenomeRaw + " -i chromsizes > sizes.genome")
+
+
+size_file_input=open("sizes.genome", "r")
+chromosome_sizes={}
+for line in size_file_input:
+      #print("here")
+      #print(line)
+
+      sizechrom=line.split()[0]
+      sizechrom=sizechrom.strip()
+      size=line.split()[1]
+      size=size.strip()
+      #print (size)
+
+      chromosome_sizes[sizechrom]=size
+
+###now have the genome chromosome sizes in a dictionary
+
+
+###generate the kmers for the unmapapble now
+
+if UnmappalbesYesOrNo == "Y":
+
+
+      Forward_Kmers_File_Name="Kmers_" + EditedForwardGenome
+      Forward_Kmers_File_Name_ToWrite=open(Forward_Kmers_File_Name, 'w')
+      ForwarGenomeToParse=open(EditedForwardGenome, "r")
+      for line in ForwarGenomeToParse:
+            #print (line)
+            if ">" in line:
+                  chrom=line.split(">")[1]
+                  chrom=chrom.strip()
+            if ">" not in line:
+                  UpperBoundLength=len(line)
+                  #print (UpperBoundLength)
+                  i=0
+                  iend=i+Kmer_Size
+
+                  final_bound=UpperBoundLength - Kmer_Size
+                  while i != final_bound:
+                        kmer=line[i:iend]
+
+                        i+=1
+                        iend+=1
+                        newread= ">"+chrom+"_(pos)"+str(i) +"\n" + kmer + "\n"
+                        Forward_Kmers_File_Name_ToWrite.write(newread)
+
+
+
+
+      Reverse_Kmers_File_Name="Kmers_"+ Reverse_EditedForwardGenome
+      Reverse_Kmers_File_Name_toWrite=open(Reverse_Kmers_File_Name, 'w')
+
+      ReverseGenomeToParse=open(Reverse_EditedForwardGenome, 'r')
+      for line in ReverseGenomeToParse:
+            if ">" in line:
+                  chrom=line.split(">")[1]
+                  chrom=chrom.strip()
+            if ">" not in line:
+                  UpperBoundLength=len(line)
+                  #print (UpperBoundLength)
+                  i=0
+                  iend=i+Kmer_Size
+
+                  final_bound=UpperBoundLength - Kmer_Size
+                  while i != final_bound:
+                        kmer=line[i:iend]
+
+                        i+=1
+                        iend+=1
+                        newread= ">"+chrom+"_(pos)"+str(i) +"\n" + kmer + "\n"
+                        Reverse_Kmers_File_Name_toWrite.write(newread)
+
+
+###Create the indexes for forward and reverse genome
+
+
+
+os.system("mkdir " + SpeciesFileFolderName+"_GenomeFiles")
+os.system("mkdir " + SpeciesFileFolderName+"_GenomeFiles/Forward")
+os.system("mkdir " + SpeciesFileFolderName+"_GenomeFiles/Reverse")
+os.system("bowtie2-build " +EditedForwardGenome+" " + SpeciesFileFolderName+"_GenomeFiles/Forward/Forward")
+os.system("bowtie2-build " +Reverse_EditedForwardGenome+" " + SpeciesFileFolderName+"_GenomeFiles/Reverse/Reverse")
+os.system("mv sizes.genome " + SpeciesFileFolderName+"_GenomeFiles")
+
+
+
+if UnmappalbesYesOrNo == "Y":
+
+
+      #basefilename=str(ForwardGenomeRaw)
+      MappedForwardKmersSamFileName= basefilename.split(".fasta")[0]
+      MappedForwardKmersSamFileName=MappedForwardKmersSamFileName+".sam"
+      inputcommand="bowtie2 -p 4 -x " + SpeciesFileFolderName + "_GenomeFiles/Forward/Forward -f " + Forward_Kmers_File_Name + " -S Mapped_"+ str(Kmer_Size)+"Kmers_" + MappedForwardKmersSamFileName
+      print(inputcommand)
+      os.system(inputcommand)
+
+      MappedReverseKmersSamFileName= basefilename.split(".fasta")[0]
+      MappedReverseKmersSamFileName= MappedReverseKmersSamFileName+".sam"
+      inputcommand="bowtie2 -p 4 -x " + str(SpeciesFileFolderName) + "_GenomeFiles/Reverse/Reverse -f " + str(Reverse_Kmers_File_Name) + " -S Mapped_Reverse_"+ str(Kmer_Size)+"Kmers_" + str(MappedReverseKmersSamFileName)
+      os.system(inputcommand)
+
+
+      ### bowtie2 working now need to get unmappables
+      ##one loop for each one just loop through the sizes one for correctino
+
+
+      Forward_outputname=str((SpeciesFileFolderName+"_GenomeFiles/"+SpeciesFileFolderName+str(Q_Score_Cutoff)+"UnmappableForward.bed"))
+      Reverse_outputname=str((SpeciesFileFolderName+"_GenomeFiles/"+SpeciesFileFolderName+str(Q_Score_Cutoff)+"UnmappableReverse.bed"))
+      All_outputname=str((SpeciesFileFolderName+"_GenomeFiles/"+SpeciesFileFolderName+str(Q_Score_Cutoff)+"UnmappableAll.bed"))
+      output_Forward_Qscore=open(Forward_outputname, 'w')
+      output_Reverse_Qscore=open(Reverse_outputname, 'w')
+      output_All_Qscore=open(All_outputname, 'w')
+      ForwardSamFileName=str("Mapped_"+ str(Kmer_Size)+"Kmers_" + MappedForwardKmersSamFileName)
+      ReverseSamFileName=str("Mapped_Reverse_"+ str(Kmer_Size)+"Kmers_" + MappedReverseKmersSamFileName)
+
+
+      sam=open(ForwardSamFileName, "r")
+      for line in sam:
+            #print(line)
+
+            if "(pos)" in line:
+                  QscoreTag=1
+                  MdZTag=1
+                  ChromTag=1
+                  LocationTag=1
+
+                  direction=int(line.split()[1])
+                  Qscore=int(line.split()[4])
+
+
+                  chrom=line.split()[2]#is it in chrom
+                  direction=line.split()[1]
+
+                  startlocation=line.split()[3] #where it is mapping to start
+
+                  if chrom != "*":
+                        MDtag=line.split()[17]
+                  if chrom == "*":
+                        MDtag="MD:Z:0"
+                  #print (MDtag)
+                  CorrectChrom=line.split()[0]
+
+
+                  CorrectChrom=line.split("(pos)")[0]
+                  CorrectChrom=CorrectChrom[:-1]
+
+                  CorrectLocation=line.split("(pos)")[1]
+
+                  CorrectLocation=CorrectLocation.split()[0]
+
+                  QscoreTag=1
+                  MdZTag=1
+                  ChromTag=1
+                  LocationTag=1
+
+                  if "MD:Z:0" in MDtag:
+                        MdZTag=0
+                  if int(Qscore)<=int(Q_Score_Cutoff):
+                        QscoreTag=0
+                  if CorrectChrom!=chrom:
+                        ChromTag=0
+                  if int(CorrectLocation)!=int(startlocation):
+                        LocationTag=0
+
+                  
+                  if MDtag==0 or QscoreTag==0 or ChromTag==0 or LocationTag==0 or direction==16:
+                        keytotal= CorrectChrom+ ", " + CorrectLocation + ", F"
+
+
+                        output_Forward_Qscore.write(CorrectChrom +  "\t" +CorrectLocation + "\t" +CorrectLocation + "\t" + "." + "\t" + "500" + "\t" + "+" + "\n")
+                        output_All_Qscore.write(CorrectChrom +  "\t" +CorrectLocation + "\t" +CorrectLocation + "\t" + "." + "\t" + "500" + "\t" + "+" + "\n")
+
+      sam=open(ReverseSamFileName, "r")
+      for line in sam:
+          if "(pos)" in line:
+              QscoreTag=1
+              MdZTag=1
+              ChromTag=1
+              LocationTag=1
+
+              direction=int(line.split()[1])
+              Qscore=int(line.split()[4])
+
+
+              chrom=line.split()[2]#is it in chrom
+              direction=line.split()[1]
+              
+              startlocation=line.split()[3] #where it is mapping to start
+              
+              if chrom != "*":
+                  MDtag=line.split()[17]
+              if chrom == "*":
+                  MDtag="MD:Z:0"
+              
+              CorrectChrom=line.split()[0]
+
+              
+              CorrectChrom=line.split("(pos)")[0]
+              CorrectChrom=CorrectChrom[:-1]
+
+              CorrectLocation=line.split("(pos)")[1]
+
+              CorrectLocation=CorrectLocation.split()[0]
+
+              QscoreTag=1
+              MdZTag=1
+              ChromTag=1
+              LocationTag=1
+              if "MD:Z:0" in MDtag:
+                  MdZTag=0
+                  #print("MD:Z")
+              if int(Qscore)<=int(Q_Score_Cutoff):
+                  QscoreTag=0
+                  
+              if CorrectChrom!=chrom:
+                  ChromTag=0
+                  #print("Chrom")
+              if int(CorrectLocation)!=int(startlocation):
+                  LocationTag=0
+                  #print("Location")
+
+                  
+              if MDtag==0 or QscoreTag==0 or ChromTag==0 or LocationTag==0 or direction==16:
+
+                  #modifying Correct Locations
+                  for chromosome_key,chormosome_value in chromosome_sizes.items():
+                  #print (key)
+                  #print ("skip")
+                  #print(value)
+                        chromosome_key_raw=chromosome_key.strip()
+                        if chromosome_key_raw == CorrectChrom:
+                        CorrectLocation=str(abs(int(chormosome_value)-int(CorrectLocation))+1)
+
+
+
+
+                  keytotal= CorrectChrom+ ", " + CorrectLocation + ", R"
+
+                  
+                  output_Reverse_Qscore.write(CorrectChrom +  "\t" +CorrectLocation + "\t" +CorrectLocation + "\t" + "." + "\t" + "500" + "\t" + "-" + "\n")
+                  output_All_Qscore.write(CorrectChrom +  "\t" +CorrectLocation + "\t" +CorrectLocation + "\t" + "." + "\t" + "500" + "\t" + "-" + "\n")
