@@ -1,0 +1,499 @@
+#!/usr/bin/env python3
+
+#Need to instal bowtie2, samtools, bedtools, deeptools, and bases2fastq (this one is from the AVITI website)
+#In order to obtain the correctly formated genome files, you need to run the genomic DNA fasta file through the "Genome_Processing.py" code
+
+from collections import Counter
+from collections import OrderedDict
+import csv
+from collections import defaultdict
+from pathlib import Path
+
+import os
+import operator
+import json
+import numpy as np
+import random
+
+
+########
+"""
+Input and process all of the information for file input and output
+"""
+########
+
+
+GenomeFasta=input("What is the pathname of the genome file (.fasta):")
+GenomicFiles=input("What is the pathname of the genomic files folder (from genome processing code):")
+
+ForwardIndexForBowtie=GenomicFiles+"/Forward/Forward"
+ReverseIndexForBowtie=GenomicFiles+"/Reverse/Reverse"
+GenomeSizeFile=GenomicFiles+"/sizes.genome"
+
+
+
+AnnotationFile=input("What is the location (pathname) of the Annotation File:")
+
+
+
+DataFolder=input("What is the pathname for the raw data from the AVITI instrument:")
+
+current_directory = os.getcwd()
+
+DemultiplexedDataFolder = str(current_directory)
+
+WillThereBeTrimming=input("Will there be 5' or 3' trimming (Y or N):")
+if WillThereBeTrimming == "Y":
+    fiveprimetrimarea=float(input("Five Prime Percentage to Discount for Mapping (Decimal Format):"))
+    threeprimetrimarea=float(input("Three Prime Percentage to Discount for Mapping (Decimal Format):"))
+else:
+    fiveprimetrimarea=0
+    threeprimetrimarea=0
+
+#Uses Docker to run the bases2fastq software from AVITI on a Mac OS.  If running on linux you can just run the command without using Docker.
+
+print("Demultiplexing Command : " + "docker run --platform linux/amd64 --rm -v " + DataFolder + "/:/input -v " + DemultiplexedDataFolder + "/:/output elembio/bases2fastq bases2fastq /input /output -p 8")
+os.system("docker run --platform linux/amd64 --rm -v " + DataFolder + "/:/input -v " + DemultiplexedDataFolder + "/:/output elembio/bases2fastq bases2fastq /input /output -p 8")
+
+
+ReadFastQ=(DemultiplexedDataFolder+"/Samples/DefaultProject")
+
+FileList=[]
+
+fastQ_files = []
+
+for root, dirs, files in os.walk(ReadFastQ):
+
+	for file in files:
+		if file.endswith(".fastq.gz"):
+			fastQ_files.append(os.path.join(root, file))
+
+
+for file in fastQ_files:
+
+	print("----------------Loop Start------------------")
+	print(" ")
+
+	All_Features={}
+	All_Features_list=[]
+	MappedSitesData={}
+	Count_Feature=0
+	features=open(AnnotationFile, "r")
+	for line in features:
+		if "#" not in line: #make sures it is not the header
+			featuretype=line.split()[2]
+			Chrom=line.split()[0]#what chromosome
+			featuretype=line.split()[2]#what type of feature
+			#startfeature=line.split()[3]#start position
+			#endfeature=line.split()[4]#end position
+			orientation=line.split()[6] #orientation of the gene
+			StorePositions=[]
+			StorePositions.append(int(line.split()[3]))
+			StorePositions.append(int(line.split()[4]))
+			StorePositions.sort()
+			startfeature=str(StorePositions[0])
+			endfeature=str(StorePositions[1])
+
+			genename=line.split()[1] #gene name from second column (make sure this is standard name)
+			Count_Feature+=1
+			Gene_Total_Identifier=genename+","+featuretype
+			MappedSitesData.setdefault(Gene_Total_Identifier, []).append(0)
+
+			All_Features.update({Count_Feature:[startfeature, endfeature, orientation, Gene_Total_Identifier, Chrom, featuretype]})
+			#All_Features_list.append(startfeature, endfeature, orientation, Gene_Total_Identifier, Chrom, featuretype)
+			#print (startfeature, endfeature, orientation, Gene_Total_Identifier, Chrom, featuretype)
+
+
+
+	sample_name_to_strip = Path(file).stem
+	sample_name = sample_name_to_strip.rstrip(".fastq")
+
+	print("Processing sample: " + sample_name_to_strip)
+
+	Demultiplexed_name_Forward=file
+	ForwardMappingSam=sample_name+"_F.sam"
+	ReverseMappingSam=sample_name+"_R.sam"
+	SiteCountFileName=sample_name+"_SiteCount.csv"
+	GeneCountFileName=sample_name+"_GeneCount.csv"
+	removedGeneCountFileName=sample_name + "GeneCount_removed.csv"
+	BedFileName=sample_name+".bed"
+	BedFileIdentifier=sample_name
+	BamFileName=sample_name+".bam"
+	sortedBamFileName="sorted."+BamFileName
+	MidLcFileName=sample_name+"_MidLc.csv"
+	BedGraphName=sample_name+"_bg.bedgraph"
+	deeptoolsBedGraphName=sample_name+"_deeptools.bw"
+	normalizedBedGraphName="normalized"+deeptoolsBedGraphName
+	cutadapt_output_name=sample_name+"_CutAdapt.fastq"
+
+
+
+
+	print("Cutadapt final command: " + "cutadapt -a AGCGCTCGCTGT -j 20 -e 0 -O 12 --no-indels -o " + cutadapt_output_name + " " + Demultiplexed_name_Forward)
+
+	os.system("cutadapt -a AGCGCTCGCTGT -j 20 -e 0 -O 12 --no-indels -o " + cutadapt_output_name + " " + Demultiplexed_name_Forward)
+
+
+
+	########
+
+	#Running bowtie2
+
+	########
+
+	print("bowtie2 final command Forward: " + "bowtie2 -p 20 -x " + ForwardIndexForBowtie + " -U " + cutadapt_output_name + " -S " + ForwardMappingSam)
+
+	os.system("bowtie2 -p 20 -x " + ForwardIndexForBowtie + " -U " + cutadapt_output_name + " -S " + ForwardMappingSam)
+
+	print("bowtie2 final command Reverse: " + "bowtie2 -p 20 -x " + ReverseIndexForBowtie + " -U "+ cutadapt_output_name + " -S " + ReverseMappingSam)
+
+	os.system("bowtie2 -p 20 -x " + ReverseIndexForBowtie + " -U "+ cutadapt_output_name + " -S " + ReverseMappingSam)
+
+	########
+	"""
+	Convert sam file to SiteCount file
+	"""
+	########
+
+	All_Sites_List=[]
+
+
+	sam=open(ForwardMappingSam, "r")
+	for line in sam:
+	    if line.startswith("@"):
+	    	continue
+	    else:
+	        qscore=int(line.split()[4])
+	        if qscore>20:
+	            CorrectChrom=line.split()[2]#is it in chrom
+	            direction=line.split()[1]
+	            startlocation=line.split()[3] #where it is mapping to start
+	            MDtag=line.split()[17]
+	            if direction=="0" and "MD:Z:0" not in MDtag:
+	            	keytotal= CorrectChrom+ ", " + startlocation + ", F"
+	            	All_Sites_List.append(keytotal)
+
+
+	### Processing Reverse Reads
+
+	chromosome_sizes={}
+	GenomeSizeFileToLoop=open(GenomeSizeFile, 'r')
+	for line in GenomeSizeFileToLoop:
+		#print("here")
+		#print(line)
+
+		sizechrom=line.split()[0]
+		sizechrom=sizechrom.strip()
+		size=line.split()[1]
+		size=size.strip()
+		#print (size)
+
+		chromosome_sizes[sizechrom]=size
+
+
+	sam=open(ReverseMappingSam, "r")
+	for line in sam:
+		if line.startswith("@"):
+			continue
+		else:
+			qscore=int(line.split()[4])
+			if qscore>20:
+				CorrectChrom=line.split()[2]#is it in chrom
+				direction=line.split()[1]
+				startlocation=line.split()[3] #where it is mapping to start
+				MDtag=line.split()[17]
+				if direction=="0" and "MD:Z:0" not in MDtag:
+					for chromosome_key,chormosome_value in chromosome_sizes.items():
+						chromosome_key_raw=chromosome_key.strip()
+						if chromosome_key_raw == CorrectChrom:
+							CorrectLocation=str(abs(int(chormosome_value)-int(startlocation))+1)
+							keytotal= CorrectChrom+ ", " + CorrectLocation + ", R"
+							All_Sites_List.append(keytotal)
+
+	Counted_All_Sites_List= Counter(All_Sites_List)
+
+	output=open(SiteCountFileName, 'w')
+	for key,value in Counted_All_Sites_List.items():
+	    key=str(key)
+	    value=str(value)
+	    output.write(key + "," + value +"\n")
+
+	###
+	"""
+	Convert Site Count file to Bed file
+	"""
+	###
+
+	sitecountfile=open(SiteCountFileName, "r")
+
+
+	output=open(BedFileName, 'w')             
+	output.write("track name="+BedFileIdentifier+" useScore=1\n")
+	for line in sitecountfile:
+	    #count1+=1
+	    if "mito" not in line:
+	        #count2+=1
+	        i=0
+	        chrom=line.split(",")[0]
+	        start=line.split(",")[1]
+	        count=line.split(",")[3]
+	        startprime=int(start)
+	        start=str(start)
+	        count=count.strip()
+	        countprime=int(count)
+	        count=str(countprime*20+100)
+	        strand=line.split(",")[2]
+	        strand=strand.rstrip()
+	        if strand==" F":
+	            startplus1=startprime+1
+	            startplus1=str(startplus1)
+	            strand="+"           
+	            output.write(chrom + "\t" +start + "\t" +start + "\t" + "." + "\t" + count + "\t" + strand + "\n")
+	        if strand==" R":
+	            #count3+=1
+	            startminus1=startprime-1
+	            startminus1=str(startminus1)
+	            #print( "yes")
+	            strand="-"
+	            output.write(chrom + "\t" +start + "\t" +start + "\t" + "." + "\t" + count + "\t" + strand + "\n")
+
+
+	#####
+	"""
+	Converting SiteCount.csv into GeneCount.csv
+	"""
+	###
+	"""All_Features={}
+	MappedSitesData={}
+	Count_Feature=0
+	features=open(AnnotationFile, "r")
+	for line in features:
+		if "#" not in line: #make sures it is not the header
+			featuretype=line.split()[2]
+			if "gene" in featuretype:
+				Chrom=line.split()[0]#what chromosome
+				featuretype=line.split()[2]#what type of feature
+				startfeature=line.split()[3]#start position
+				endfeature=line.split()[4]#end position
+				orientation=line.split()[6] #orientation of the gene
+				genename=line.split()[1] #gene name from second column (make sure this is standard name)
+				Count_Feature+=1
+				MappedSitesData.setdefault(genename, []).append(0)
+
+				All_Features.update({Count_Feature:[startfeature, endfeature, orientation, genename, Chrom]})"""
+
+
+	
+
+	"""Mapping and output as a gene count file"""
+
+	sitecountfile=open(SiteCountFileName, "r")
+	counter=0
+	i1=0
+	for line in sitecountfile:
+		#print (line)
+		Site_Chrom=line.split(",")[0]#is it in chrom
+		Site_Location=line.split(",")[1] #where it is mapping to start
+		Site_Counts=line.split(",")[3] #number of reads at that site
+		Site_Chrom=str(Site_Chrom)
+		Site_Location=int(Site_Location)
+		Site_Counts=int(Site_Counts)
+		i1+=1
+		#print (i1)
+		#i2=0
+		for i in All_Features:
+			#print (type(All_Features))
+			#print (All_Features[i])
+			#Values_All_Features=list(All_Features.values()[i])
+			#print (Values_All_Features)
+			FeatureChrom=All_Features[i][4]
+			#print (FeatureChrom, Site_Chrom)
+			if FeatureChrom == Site_Chrom:
+				#print (FeatureChrom, Site_Chrom)
+
+
+				Feature_Start=int(All_Features[i][0])#start of feature
+				#print (Feature_Start)
+				Feature_End=int(All_Features[i][1])#end of feature
+				#print (Feature_End)
+				Feature_Name=All_Features[i][3]#feature name
+				#print (Feature_Name)
+				Feature_Orientation=All_Features[i][2]#orientation
+				#print (Feature_Orientation)
+				Trim_End_Size=threeprimetrimarea*abs(Feature_Start-Feature_End)#if trimming
+				Trim_Start_Size=fiveprimetrimarea*abs(Feature_Start-Feature_End)#if trimming 
+
+
+	            #3'
+				if Feature_Orientation == "-":
+					Feature_Start=Feature_Start+Trim_End_Size
+				if Feature_Orientation == "+":
+					Feature_End=Feature_End-Trim_End_Size            
+				#5'
+				if Feature_Orientation == "-":
+					Feature_End=Feature_End-Trim_Start_Size
+				if Feature_Orientation == "+":
+					Feature_Start=Feature_Start+Trim_Start_Size 
+
+				if Feature_Start <= Site_Location and Site_Location <= Feature_End: #checks if it is between that gene
+					#print("Correct")
+					i=str(i)
+					identifier=Feature_Name
+					Site_Counts=str(Site_Counts)               
+					MappedSitesData.setdefault(identifier, []).append(Site_Counts)
+
+	genecsv=open(GeneCountFileName, 'w')   
+	genecsvremoved=open(removedGeneCountFileName, 'w')          
+	listoflistforcsv1=[]
+	for key,value in MappedSitesData.items():
+		#print(key,value)
+		newlist=[]
+		newlist1=[]
+		newlistTopRemoved=[]
+		newlistTopRemoved1=[]
+		for i in value:
+			i=int(i)
+			newlist.append(i)
+			newlistTopRemoved.append(i)
+		maxvalue=max(newlist)
+		totalreadsbeforetrim=sum(newlist)
+		totalreadsbeforetrim=str(totalreadsbeforetrim)
+		totalreadsbeforetrimremoved=sum(newlistTopRemoved)
+		totalreadsbeforetrimremoved=str(totalreadsbeforetrimremoved)
+		for i in newlist:
+			i=int(i)
+			newlist1.append(i)
+			newlistTopRemoved1.append(i)
+		newlist.sort(reverse=True)
+		newlistTopRemoved.sort(reverse=True)
+		if len(newlist)==1:
+			newlist.append(0)
+		if len(newlistTopRemoved)==1:
+			newlistTopRemoved.append(0)
+		del newlistTopRemoved[0]#remove top
+		median=np.median(newlist)
+		median=str(median)
+		totalreads=sum(newlist)
+		totalreads=str(totalreads)
+		totalreadsremoved=sum(newlistTopRemoved)
+		totalreadsremoved=str(totalreadsremoved)
+		genecsv.write(key +" , "+ totalreads+"\n")
+		genecsvremoved.write(key +" , "+ totalreadsremoved+"\n")
+
+		current_directory = os.getcwd()
+		genecsv_path = str(current_directory) +"/" + GeneCountFileName
+		genecsvremoved_path = str(current_directory) + "/" + removedGeneCountFileName
+
+	FileList.append('"'+genecsv_path+'",')
+	FileList.append('"'+genecsvremoved_path+'",')
+
+
+
+
+	###
+	"""
+	commands for bedgraph generation
+	"""
+	###
+
+	os.system("samtools view -S -b " + ForwardMappingSam + " > " + BamFileName)
+
+	os.system("samtools sort " + BamFileName + " -o " + "sorted."+BamFileName)
+
+	os.system("samtools index "+ sortedBamFileName)
+
+	os.system("bedtools genomecov -bg -ibam " + sortedBamFileName + " -g " + GenomeFasta + " > " +BedGraphName)
+
+	os.system("bamCoverage -b" + sortedBamFileName + " -o " + deeptoolsBedGraphName)
+
+	os.system("bamCoverage -b" + sortedBamFileName + " --normalizeUsing CPM -o " + normalizedBedGraphName)
+
+
+	###
+	"""
+	Calculating MidLc 
+	"""
+	###
+
+	sitecountfile=open(SiteCountFileName)
+	alllines=[]
+	for line in sitecountfile:
+	    chrom=line.split(",")[0]
+	    pos=line.split(",")[1]
+	    orient=line.split(",")[2]
+	    counts=int(line.split(",")[3])
+	    toadd=chrom+pos+orient
+	    cycles=0
+	    while cycles != counts:
+	        alllines.append(toadd)
+	        cycles+=1
+	maxreads=len(alllines)
+	print(maxreads)
+	numberofrandomsamples=100
+	output=open(MidLcFileName, 'w')
+	output.write("Reads Sampled,"+"Unique Sites Trial1,"+"Unique Sites Trial2,"+"Unique Sites Trial3,"+"\n")
+
+	while maxreads >= numberofrandomsamples:
+		random_choice=random.sample(alllines,numberofrandomsamples)
+		random_choice=list(set(random_choice))
+		trial1=len(random_choice)
+		trial1=str(trial1)
+		
+		random_choice=random.sample(alllines,numberofrandomsamples)
+		random_choice=list(set(random_choice))
+		trial2=len(random_choice)
+		trial2=str(trial2)
+
+		random_choice=random.sample(alllines,numberofrandomsamples)
+		random_choice=list(set(random_choice))
+		trial3=len(random_choice)
+		trial3=str(trial3)
+
+		numberofrandomsamplesstr=str(numberofrandomsamples)
+		newstr=numberofrandomsamplesstr+ ","+trial1+ ","+trial2+ ","+trial3
+		output.write(newstr+"\n")
+		numberofrandomsamples=int(round(numberofrandomsamples*4))
+	    
+	print(maxreads)
+	numberofrandomsamples=maxreads
+	print(numberofrandomsamples)
+	random_choice=random.sample(alllines,numberofrandomsamples)
+	random_choice=list(set(random_choice))
+	trial1=len(random_choice)
+	trial1=str(trial1)
+
+	random_choice=random.sample(alllines,numberofrandomsamples)
+	random_choice=list(set(random_choice))
+	trial2=len(random_choice)
+	trial2=str(trial2)
+
+	random_choice=random.sample(alllines,numberofrandomsamples)
+	random_choice=list(set(random_choice))
+	trial3=len(random_choice)
+	trial3=str(trial3)
+
+	numberofrandomsamplesstr=str(numberofrandomsamples)
+
+	newstr=numberofrandomsamplesstr+ ","+trial1+ ","+trial2+ ","+trial3
+
+	output.write(newstr+"\n")
+	print(newstr)
+
+	#this deletes the sam files used to generate the site count file in order to conserve space on your disc.  
+	#Comment these two lines out if you want to retain the .sam files.
+
+	os.remove(ForwardMappingSam)
+	os.remove(ReverseMappingSam)
+
+	print("----------------Loop End------------------")
+
+
+with open ('FileListForRscript.txt', 'w') as Rfile:
+	for item in FileList:
+		Rfile.write(item + "\n")
+
+
+
+
+
+
