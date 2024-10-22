@@ -1,3 +1,5 @@
+This code is written for Mac.  To utilize the Bases2FastQ software from Element Biosciences you need to install Docker to be able to run the Linux code in a Mac environment.
+
 Before you run the code, make sure you modify the RunManifest in the data output folder from the AVITI instrument.  To do this, you need to duplicate the RunManifest_Example.csv file, open the duplicated  file in Excel, and update the sample names along with which index you used them with.  Make sure to not modify the first two header rows.  In the example file, the indices listed are in numerical order from index1 to index 96 so just change the sample names in index order and delete the rows you don’t need.  You can ignore the first 4 phiX rows or delete them if your experiment does not have phiX.  This file needs to be saved with the name “RunManifest” and you need to select the UTF-8 file format when saving it in Excel.  Replace the existing RunManifest.csv file in the raw data folder from the AVITI instrument.    
 
 Example: 
