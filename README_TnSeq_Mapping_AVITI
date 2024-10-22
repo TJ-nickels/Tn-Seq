@@ -28,9 +28,7 @@ Create a copy of the current AVITI_MappingCode_Vx.py (x stands for current code 
 
 Open the terminal application and navigate to your newly created experiment folder containing your AVITI_MappingCodeVx.py using the change directories command (cd).  Remember you can type the first few letters of a folder or file and press tab to auto fill.
 	keystrokes:
-		cd Desktop/	
-		cd AVITI_HIP_Code/
-		cd Experiment_Folder/
+		cd Desktop/AVITI_HIP_Code/Experiment_Folder/
 
 Now you are ready to run the code.  Type ./AVITI_MappingCode_Vx.py and press enter.
 
