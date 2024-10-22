@@ -1,0 +1,54 @@
+Before you run the code, make sure you modify the RunManifest in the data output folder from the AVITI instrument.  To do this, you need to duplicate the RunManifest_Example.csv file, open the duplicated  file in Excel, and update the sample names along with which index you used them with.  Make sure to not modify the first two header rows.  In the example file, the indices listed are in numerical order from index1 to index 96 so just change the sample names in index order and delete the rows you don’t need.  You can ignore the first 4 phiX rows or delete them if your experiment does not have phiX.  This file needs to be saved with the name “RunManifest” and you need to select the UTF-8 file format when saving it in Excel.  Replace the existing RunManifest.csv file in the raw data folder from the AVITI instrument.    
+
+Example: 
+
+
+
+[SAMPLES]
+
+SampleName
+Index1
+M1_D1_ctrl   TCGTGGAGCG
+M2_D1_ctrl   CTACAAGATA
+M3_D1_ctrl   TACGTTCATT
+M4_D1_ctrl   TGCCTGGTGG
+M5_D1_ctrl   TCCATCCGAG
+
+        ^            ^
+Change these        These indices are
+Sample names       listed in order (1-96) They are the reverse compliment of the Illumina unique dual indexes set A (https://support-docs.illumina.com/SHARE/AdapterSequences/Content/SHARE/AdapterSeq/Illumina_DNA/IlluminaUDIndexes.htm)
+
+
+Go to the AVITI_HIP_Code folder and make a new folder with your experiment name.  Make sure there are no special characters or spaces.
+	Example: BG2_mouse_gut_Caspo_07302024
+
+Create a copy of the current AVITI_MappingCode_Vx.py (x stands for current code version) and drag it into your newly created experiment folder.  Make sure you do not delete or move the original file.
+
+Open the terminal application and navigate to your newly created experiment folder containing your AVITI_MappingCodeVx.py using the change directories command (cd).  Remember you can type the first few letters of a folder or file and press tab to auto fill.
+	keystrokes:
+		cd Desktop/	
+		cd AVITI_HIP_Code/
+		cd Experiment_Folder/
+
+Now you are ready to run the code.  Type ./AVITI_MappingCode_Vx.py and press enter.
+
+The first prompt asks for the pathname to the genome file.  Locate the .fasta file containing the genome of your organism/strain and right click on it.  Press and hold the “option” button and the “copy” choice in the right click menu will change to “copy as pathname”.  Click this option and then paste the file path into the terminal window and press enter.
+
+The next prompt will now be visible.  It asks for the pathname of the genomic files folder.  This folder was generated using the GenomeProcessingVx.py code.  Using the same method as above, copy the pathname to this folder, paste it into the terminal, and press enter.
+
+The next prompt asks for the annotation file.  Locate the file for your organism/strain and paste in the path name.  This needs to be formatted in a specific way as a tab separated text file:
+
+Chromosome(must_match_genome_file)    GeneID	FeatureType	    StartCoord     StopCoord   .    strand(+/-)
+
+Example:
+ChrA  CAGL0A00099g      Gene  19457 3717  .     -     .     CAGL0A00099g
+
+The next prompt asks for the pathname of the raw data.  Locate the folder produced by the AVITI instrument and paste in the pathname as above.  The folder name is the same name you entered into the AVITI instrument while you were setting up the run on board.  
+
+The final prompt asks if you want to trim your data.  Type “Y” for yes or ”N” for no.  If yes, you need to answer more prompts which ask for the percentage you want to trim from each read in a decimal format.
+
+After you press enter, the code will run.  It is a good idea to save the terminal output as a .txt file and store it in your experiment folder.  To do this, select the terminal window and then click “Shell” on the top of the screen.  Select “Export text as” and save your file.  When it is done, you will have all of your SiteCount and GeneCount files (along with the others such as MidLc and .bed).  You will also have a file called “FileListForRscript.txt”  This file contains a handy list of pathnames for the GeneCount.csv and RemovedGeneCount.csv (top site removed) files that can be copied and pasted into the R script that binds all of the gene count files together to generate a multi-column gene count file in which the columns are in the same order as the file list you copied into R.  Unfortunately you still have to manually add headers to the columns, but that can be fixed with modifications to the R code.  
+
+Use the terminal to delete the CutAdapt warning messages from your terminal saved output.txt file: sed -i '' -e '/Warning:*/d' <yourfilename.txt> 
+Example: sed -i '' -e '/Warning:*/d' TerminalSavedOutput.txt 
+
