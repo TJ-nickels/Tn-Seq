@@ -43,7 +43,7 @@ The next prompt asks for the annotation file.  Locate the file for your organism
 Chromosome(must_match_genome_file)    GeneID	FeatureType	    StartCoord     StopCoord   .    strand(+/-)
 
 Example:
-ChrA  CAGL0A00099g      Gene  19457 3717  .     -     .     CAGL0A00099g
+ChrA  CAGL0A00099g      Gene  19457 3717  .     -     .     
 
 The next prompt asks for the pathname of the raw data.  Locate the folder produced by the AVITI instrument and paste in the pathname as above.  The folder name is the same name you entered into the AVITI instrument while you were setting up the run on board.  
 
