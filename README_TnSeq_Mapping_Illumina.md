@@ -20,15 +20,15 @@ Description of prompts:
 
 Example of a properly formatted annotation file (as a tab separated file or .gff3 file):
 
-ChrA  CAGL0A00099g      Gene  19457 3717  .     -     .     CAGL0A00099g
-ChrA  CAGL0A00165g      Gene  33524 32685 .     -     .     CAGL0A00165g
-ChrA  CAGL0A00187g      Gene  36405 34135 .     -     .     CAGL0A00187g
-ChrA  CAGL0A00209g      Gene  36908 39088 .     +     .     CAGL0A00209g
-ChrA  CAGL0A00231g      Gene  39889 42270 .     +     .     CAGL0A00231g
-ChrA  CAGL0A00253g      Gene  43234 42563 .     -     .     CAGL0A00253g
-ChrA  CAGL0A00275g      Gene  43717 44517 .     +     .     CAGL0A00275g
-ChrA  CAGL0A00297g      Gene  45423 44827 .     -     .     CAGL0A00297g
-ChrA  CAGL0A00319g      Gene  45626 47155 .     +     .     CAGL0A00319g
+ChrA  CAGL0A00099g      Gene  19457 3717  .     -     .     
+ChrA  CAGL0A00165g      Gene  33524 32685 .     -     .     
+ChrA  CAGL0A00187g      Gene  36405 34135 .     -     .     
+ChrA  CAGL0A00209g      Gene  36908 39088 .     +     .     
+ChrA  CAGL0A00231g      Gene  39889 42270 .     +     .     
+ChrA  CAGL0A00253g      Gene  43234 42563 .     -     .     
+ChrA  CAGL0A00275g      Gene  43717 44517 .     +     .     
+ChrA  CAGL0A00297g      Gene  45423 44827 .     -     .     
+ChrA  CAGL0A00319g      Gene  45626 47155 .     +     .     
 
 Example of an index list (as a .txt file):
 
