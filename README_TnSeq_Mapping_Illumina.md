@@ -3,13 +3,6 @@ Analyzing transposon insertion data from DNA sequencing reads
 
 Use the Genome_Processing code to ensure your genome files are in the correct format for use with the TnSeq_Mapping code.
 
-Description of the prompts:
-"What should the species file folder name be?:" Enter the name of the species/strain.  This folder name will be entered in a command line prompt during execution of the TnSeq_Mapping code
-"Do you want to make unmappables (Y or N)?:" Type Y if you would like the software to generate a .bed file containing all of the sites which cannot be uniquely mapped using your selected kmer size
-"What is the desired QScore cutoff:" Enter an integer value to designate the cutoff for acceptable Qscore for your mapped reads.  Example: Enter "20" to only accept reads with an error rate of 1 in 100 nucleotides or better.  
-"What Kmer size do you want to use?:" Enter the number of nucleotides (kmer length) as an integer to generate the unmappable .bed track.  You should use the same Kmer size as the sequence read length from your instrument.
-"What is the genome file:" Indicate which genome reference file you will be using.  This file needs to be a fastA file and in the home directory.  Example: "CBS138.fasta"
-
 Use the TnSeq_Mapping code to demultiplex and map your .fastQ files to tabulate them genewise based on the supplied annotation file.
 
 Description of prompts:
