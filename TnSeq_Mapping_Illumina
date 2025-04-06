@@ -142,7 +142,7 @@ All_Sites_List=[]
 
 sam=open(ForwardMappingSam, "r")
 for line in sam:
-    if "M0" in line:
+    if "@" not in line:
         qscore=int(line.split()[4])
         if qscore>20:
             CorrectChrom=line.split()[2]#is it in chrom
@@ -176,7 +176,7 @@ for line in GenomeSizeFileToLoop:
 
 sam=open(ReverseMappingSam, "r")
 for line in sam:
-      if "M0" in line:
+      if "@" not in line:
             qscore=int(line.split()[4])
             if qscore>20:
                   CorrectChrom=line.split()[2]#is it in chrom
