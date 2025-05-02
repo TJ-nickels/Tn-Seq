@@ -45,26 +45,26 @@ ReverseReadFastQ=input("What is the Reverse Read file pathname (FastQ or FastQ Z
 
 
 
-Prefix_For_File_Nanes=input("What is the prefix wanted for your file names (String with no spaces):")
+Prefix_For_File_Names=input("What is the prefix wanted for your file names (String with no spaces):")
 
 
 
 
 
-Demultiplexed_name_Forward=Prefix_For_File_Nanes+"F.fastq"
-Demultiplexed_name_Reverse=Prefix_For_File_Nanes+"R.fastq"
-ForwardMappingSam=Prefix_For_File_Nanes+"F.sam"
-ReverseMappingSam=Prefix_For_File_Nanes+"R.sam"
-SiteCountFileName=Prefix_For_File_Nanes+"SiteCount.csv"
-GeneCountFileName=Prefix_For_File_Nanes+"GeneCount.csv"
+Demultiplexed_name_Forward=Prefix_For_File_Names+"F.fastq"
+Demultiplexed_name_Reverse=Prefix_For_File_Names+"R.fastq"
+ForwardMappingSam=Prefix_For_File_Names+"F.sam"
+ReverseMappingSam=Prefix_For_File_Names+"R.sam"
+SiteCountFileName=Prefix_For_File_Names+"SiteCount.csv"
+GeneCountFileName=Prefix_For_File_Names+"GeneCount.csv"
 removedGeneCountFileName="removed" + GeneCountFileName
-BedFileName=Prefix_For_File_Nanes+".bed"
-BedFileIdentifier=Prefix_For_File_Nanes
-BamFileName=Prefix_For_File_Nanes+".bam"
+BedFileName=Prefix_For_File_Names+".bed"
+BedFileIdentifier=Prefix_For_File_Names
+BamFileName=Prefix_For_File_Names+".bam"
 sortedBamFileName="sorted."+BamFileName
-MidLcFileName=Prefix_For_File_Nanes+"MidLc.csv"
-BedGraphName=Prefix_For_File_Nanes+"_bg.bedgraph"
-deeptoolsBedGraphName=Prefix_For_File_Nanes+"_deeptools.bw"
+MidLcFileName=Prefix_For_File_Names+"MidLc.csv"
+BedGraphName=Prefix_For_File_Names+"_bg.bedgraph"
+deeptoolsBedGraphName=Prefix_For_File_Names+"_deeptools.bw"
 normalizedBedGraphName="normalized"+deeptoolsBedGraphName
 
 ########
