@@ -170,7 +170,7 @@ for file in fastQ_files:
 	            startlocation=line.split()[3] #where it is mapping to start
 	            MDtag=line.split()[17]
 	            if direction=="0" and "MD:Z:0" not in MDtag:
-	            	keytotal= CorrectChrom+ ", " + startlocation + ", F"
+	            	keytotal= CorrectChrom+ "," + startlocation + ",F"
 	            	All_Sites_List.append(keytotal)
 
 
@@ -207,7 +207,7 @@ for file in fastQ_files:
 						chromosome_key_raw=chromosome_key.strip()
 						if chromosome_key_raw == CorrectChrom:
 							CorrectLocation=str(abs(int(chormosome_value)-int(startlocation))+1)
-							keytotal= CorrectChrom+ ", " + CorrectLocation + ", R"
+							keytotal= CorrectChrom+ "," + CorrectLocation + ",R"
 							All_Sites_List.append(keytotal)
 
 	Counted_All_Sites_List= Counter(All_Sites_List)
@@ -484,6 +484,7 @@ for file in fastQ_files:
 
 	os.remove(ForwardMappingSam)
 	os.remove(ReverseMappingSam)
+	os.remove(sortedBamFileName)
 
 	print("----------------Loop End------------------")
 
